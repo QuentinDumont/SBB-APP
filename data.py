@@ -1,48 +1,51 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Oct 11 10:53:11 2018
-
 @author: Quentin
 """
 
-import pandas as pd
-import geopandas as gpd
-import os
+import pandas as pd #Data Wrangling and Manipulation
+import geopandas as gpd #To transform the SHP file with Geometry coordinates into DataFrames
 from bokeh.models import ColumnDataSource, GeoJSONDataSource
 
 
-""" Lecture fichier Data_Passengers"""
+""" Read fichier Data_Passengers & Cleaning"""
 
 #Import passagierfrequenz.csv
-
 data_passengers = pd.read_csv('passagierfrequenz.csv', sep=';',
                               engine='python', encoding = 'utf-8',
                               parse_dates=['Bezugsjahr'])
 
+#Reading the TimeSeries Data
+"""Unfortunately, after having a look into the data, there was only two dates availables ((1/1/2014) & (1/1/16)).
+Therefore I worked with it as string in order to manipulate more easily and makes two columns out of it."""
+
+#Keeping only the Year, removing Month and Days
 data_passengers['Year'] = data_passengers['Bezugsjahr'].astype(str).str[0:4].astype(float)
 
+#Removing non-informative information and droping NAN into Geopos, because Bokeh does not plot with NAN information
 data_passengers = data_passengers.set_index('Bezugsjahr').drop(['Bemerkung', 'lod'], axis= 1).dropna(subset = ['geopos'])
+#Filling with 0 - NAN information about passengers.
 data_passengers[['DTV', 'DMW']] = data_passengers[['DTV', 'DMW']].fillna(0)
 
 #data_passengers_chart, we take off geopos to make the file lighter
 data_passengers_chart = data_passengers.drop(['geopos'], axis= 1)
 
+#Sort values by Stations Names - To make the merge of Data_Passengers 2016 & Data_Passengers 2014 with no mistakes. Indexes match.
 data_passengers_2016 = data_passengers_chart[data_passengers_chart['Year'] == 2016 ].sort_values('Bahnhof_Haltestelle')
 data_passengers_2014 = data_passengers_chart[data_passengers_chart['Year'] == 2014 ].sort_values('Bahnhof_Haltestelle')
 
 data_passengers_2016 = data_passengers_2016.reset_index()
-
 data_passengers_on_change = data_passengers_2016.drop('Bezugsjahr', axis= 1)
-
 data_passengers_on_change['DTV_2016'] = data_passengers_on_change['DTV']
 data_passengers_on_change['DMW_2016'] = data_passengers_on_change['DMW']
 
 data_passengers_2014 = data_passengers_2014.reset_index()
-
 data_passengers_on_change['Year_2014'] = data_passengers_2014['Year']
 data_passengers_on_change['DTV_2014'] = data_passengers_2014['DTV']
 data_passengers_on_change['DMW_2014'] = data_passengers_2014['DMW']
 
+"""Remove the now useless columns"""
 data_passengers_on_change = data_passengers_on_change.drop(['DTV', 'DMW'], axis = 1)
 
 #We create the ColumnDataSource for HBar Figure - DTW & DMW for 2014 + 2016
